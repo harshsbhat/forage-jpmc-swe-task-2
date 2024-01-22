@@ -1,50 +1,74 @@
+// Import necessary modules and components
 import React, { Component } from 'react';
 import DataStreamer, { ServerRespond } from './DataStreamer';
 import Graph from './Graph';
 import './App.css';
 
-/**
- * State declaration for <App />
- */
+// Define the interface for the component state
 interface IState {
-  data: ServerRespond[],
+  data: ServerRespond[];
+  showGraph: boolean;
 }
 
-/**
- * The parent element of the react app.
- * It renders title, button and Graph react element.
- */
+// Define the App component
 class App extends Component<{}, IState> {
+  // Initialize a property to store the interval ID
+  private intervalId: NodeJS.Timeout | null = null;
+
   constructor(props: {}) {
     super(props);
 
+    // Initialize the state with showGraph set to false
     this.state = {
-      // data saves the server responds.
-      // We use this state to parse data down to the child element (Graph) as element property
       data: [],
+      showGraph: false,
     };
   }
 
   /**
-   * Render Graph react component with state.data parse as property data
+   * Start streaming data when the component mounts
    */
-  renderGraph() {
-    return (<Graph data={this.state.data}/>)
+  componentDidMount() {
+    // Set an interval to call the getDataFromServer function every 100 milliseconds
+    this.intervalId = setInterval(() => this.getDataFromServer(), 100);
   }
 
   /**
-   * Get new data from server and update the state with the new data
+   * Stop streaming data when the component unmounts
+   */
+  componentWillUnmount() {
+    // Clear the interval when the component is unmounted
+    if (this.intervalId) {
+      clearInterval(this.intervalId);
+    }
+  }
+
+  /**
+   * Get new data from the server and update the state with the new data
    */
   getDataFromServer() {
+    // Call the DataStreamer.getData function to fetch server responds
     DataStreamer.getData((serverResponds: ServerRespond[]) => {
-      // Update the state by creating a new array of data that consists of
-      // Previous data in the state and the new data from server
-      this.setState({ data: [...this.state.data, ...serverResponds] });
+      // Filter out duplicate data based on timestamp
+      const uniqueData = serverResponds.filter((data) => {
+        return !this.state.data.some((existingData) => existingData.timestamp === data.timestamp);
+      });
+
+      // Update the state with the unique data
+      this.setState({ data: [...this.state.data, ...uniqueData] });
     });
   }
 
   /**
-   * Render the App react component
+   * Render the Graph component with state.data passed as a property
+   */
+  renderGraph() {
+    // Render the graph only when showGraph is true
+    return this.state.showGraph && <Graph data={this.state.data} />;
+  }
+
+  /**
+   * Render the App component
    */
   render() {
     return (
@@ -53,13 +77,13 @@ class App extends Component<{}, IState> {
           Bank & Merge Co Task 2
         </header>
         <div className="App-content">
-          <button className="btn btn-primary Stream-button"
-            // when button is click, our react app tries to request
-            // new data from the server.
-            // As part of your task, update the getDataFromServer() function
-            // to keep requesting the data every 100ms until the app is closed
-            // or the server does not return anymore data.
-            onClick={() => {this.getDataFromServer()}}>
+          <button
+            className="btn btn-primary Stream-button"
+            onClick={() => { 
+              // Set showGraph to true when the button is clicked
+              this.setState({ showGraph: true });
+            }}
+          >
             Start Streaming Data
           </button>
           <div className="Graph">
@@ -67,8 +91,9 @@ class App extends Component<{}, IState> {
           </div>
         </div>
       </div>
-    )
+    );
   }
 }
 
+// Export the App component as the default export
 export default App;
